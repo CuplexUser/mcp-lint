@@ -1,0 +1,94 @@
+{
+  "name": "mcp-lint",
+  "displayName": "MCP Lint",
+  "description": "Real-time diagnostics for MCP server source as you write it: missing tool descriptions, malformed input schemas, duplicate tool names, overly generic parameter names, and description token-bloat.",
+  "version": "0.1.0",
+  "publisher": "mcplint",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CuplexUser/mcp-lint"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "mcp",
+    "model context protocol",
+    "lint",
+    "diagnostics",
+    "agent",
+    "llm tools"
+  ],
+  "activationEvents": [
+    "onLanguage:typescript",
+    "onLanguage:javascript",
+    "onLanguage:typescriptreact",
+    "onLanguage:javascriptreact"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "mcpLint.runInspector",
+        "title": "MCP Lint: Run MCP Inspector CLI on This File",
+        "category": "MCP Lint"
+      },
+      {
+        "command": "mcpLint.relintDocument",
+        "title": "MCP Lint: Re-lint Current File",
+        "category": "MCP Lint"
+      }
+    ],
+    "configuration": {
+      "title": "MCP Lint",
+      "properties": {
+        "mcpLint.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable MCP Lint diagnostics."
+        },
+        "mcpLint.maxDescriptionTokens": {
+          "type": "number",
+          "default": 120,
+          "description": "Warn when a tool description exceeds this many whitespace-separated tokens (a rough proxy for context/token bloat)."
+        },
+        "mcpLint.genericParamNames": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "data", "input", "value", "values", "params", "arg", "args",
+            "obj", "object", "item", "items", "x", "y", "temp", "foo", "bar", "payload", "body"
+          ],
+          "description": "Top-level input schema property names considered too generic to be useful to a model."
+        },
+        "mcpLint.inspectorCommand": {
+          "type": "string",
+          "default": "npx @modelcontextprotocol/inspector --cli",
+          "description": "Command used by 'MCP Lint: Run MCP Inspector CLI on This File' (the file path is appended)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.24.0"
+  },
+  "dependencies": {
+    "typescript": "^5.4.0"
+  }
+}
