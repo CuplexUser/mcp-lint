@@ -92,10 +92,6 @@ function getLiteralText(node: ts.Node): string | undefined {
   return undefined;
 }
 
-function isEmptyObjectLiteral(node: ts.Node): node is ts.ObjectLiteralExpression {
-  return ts.isObjectLiteralExpression(node) && node.properties.length === 0;
-}
-
 function tokenCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
@@ -176,7 +172,7 @@ function checkSchemaShape(
     return; // e.g. a variable reference -- not statically analyzable, don't guess.
   }
 
-  if (isEmptyObjectLiteral(schemaNode)) {
+  if (schemaNode.properties.length === 0) {
     issues.push({
       code: 'mcp-lint/malformed-schema',
       message:
