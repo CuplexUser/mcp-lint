@@ -22,9 +22,20 @@ Scans `server.tool(...)` and `server.registerTool(...)` calls from the MCP TypeS
   reason about; configurable via `mcpLint.genericParamNames`.
 - **Description token-bloat** — long descriptions cost context on every single call; configurable
   threshold via `mcpLint.maxDescriptionTokens` (default 120 tokens).
+- **Missing per-parameter descriptions** — schema properties without a `.describe(...)` call give
+  a model nothing to go on for that field; configurable via `mcpLint.requireParamDescriptions`.
 
 Diagnostics appear as squiggly underlines and in the Problems panel, and update as you type
 (debounced) and on save.
+
+## Quick fixes
+
+Most issues ship with a one-click Code Action (lightbulb menu, or `Ctrl+.` / `Cmd+.`):
+
+- Insert a TODO description (missing description, on either call shape).
+- Unwrap a `z.object(...)` call into a raw Zod shape.
+- Scaffold an empty input schema with a TODO placeholder parameter.
+- Add a TODO `.describe(...)` call to an undocumented parameter.
 
 ## MCP Inspector CLI bridge
 
@@ -32,6 +43,13 @@ Command palette → **"MCP Lint: Run MCP Inspector CLI on This File"** shells ou
 `npx @modelcontextprotocol/inspector --cli <file>` (configurable via `mcpLint.inspectorCommand`)
 and surfaces the result: a diagnostic on the file plus the full raw output in the
 **"MCP Lint: Inspector"** output channel.
+
+## Workspace-wide scan
+
+Command palette → **"MCP Lint: Scan Workspace for Problems"** lints every `.ts`/`.tsx`/`.js`/`.jsx`
+file in the workspace in one pass (not just open editors) and reports a summary. Useful before a
+commit or PR. A status bar item (bottom right) shows the live total problem count across the
+workspace at all times — click it to jump to the Problems panel.
 
 ## Install (from source, pre-Marketplace)
 
@@ -63,6 +81,7 @@ Install the resulting `.vsix` from the Extensions view's "..." menu → **Instal
 | `mcpLint.maxDescriptionTokens` | `120` | Token-bloat warning threshold. |
 | `mcpLint.genericParamNames` | see `package.json` | Parameter names flagged as too generic. |
 | `mcpLint.inspectorCommand` | `npx @modelcontextprotocol/inspector --cli` | Base command for the Inspector bridge. |
+| `mcpLint.requireParamDescriptions` | `true` | Warn on schema parameters with no `.describe(...)` call. |
 
 ## Roadmap: Pro tier (not built this cycle)
 
@@ -92,8 +111,8 @@ MIT — see [LICENSE](./LICENSE).
 **Name:** MCP Lint
 
 **Short description (~200 char limit):**
-> Catch broken MCP tool definitions before your agent does. Real-time Problems-panel diagnostics
-> for missing descriptions, bad schemas, duplicate names, and prompt-token bloat.
+> Catch broken MCP tool definitions before your agent does. Real-time Problems-panel diagnostics,
+> one-click quick fixes, and a workspace-wide scan for missing descriptions, bad schemas, and bloat.
 
 **Categories:** Linters, Programming Languages, Other
 
@@ -111,9 +130,11 @@ MIT — see [LICENSE](./LICENSE).
 > - Duplicate tool names
 > - Overly generic parameter names
 > - Description token-bloat
+> - Parameters with no per-field description
 >
-> **Bonus:** run the official MCP Inspector CLI against your server from the command palette and
-> see its output surfaced as a diagnostic, without leaving the editor.
+> **Bonus:** one-click quick fixes for most issues, a workspace-wide scan command, a live status
+> bar problem counter, and a bridge to run the official MCP Inspector CLI against your server from
+> the command palette without leaving the editor.
 >
 > Free tier covers the TypeScript/JavaScript SDK. A Python-SDK-aware Pro tier is on the roadmap.
 

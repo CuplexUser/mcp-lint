@@ -2,17 +2,30 @@ import * as ts from 'typescript';
 
 export type Severity = 'error' | 'warning' | 'info';
 
+export interface LintFixEdit {
+  start: number;
+  end: number;
+  newText: string;
+}
+
+export interface LintFix {
+  title: string;
+  edits: LintFixEdit[];
+}
+
 export interface LintIssue {
   code: string;
   message: string;
   severity: Severity;
   start: number;
   end: number;
+  fix?: LintFix;
 }
 
 export interface AnalyzeOptions {
   maxDescriptionTokens: number;
   genericParamNames: string[];
+  requireParamDescriptions: boolean;
 }
 
 export const DEFAULT_OPTIONS: AnalyzeOptions = {
@@ -21,7 +34,10 @@ export const DEFAULT_OPTIONS: AnalyzeOptions = {
     'data', 'input', 'value', 'values', 'params', 'arg', 'args',
     'obj', 'object', 'item', 'items', 'x', 'y', 'temp', 'foo', 'bar', 'payload', 'body',
   ],
+  requireParamDescriptions: true,
 };
+
+const TODO_DESCRIPTION = 'TODO: describe this tool';
 
 const TOOL_METHOD_NAMES = new Set(['tool', 'registerTool']);
 
@@ -105,7 +121,8 @@ function checkDescriptionNode(
   anchor: ts.Node,
   sourceFile: ts.SourceFile,
   options: AnalyzeOptions,
-  issues: LintIssue[]
+  issues: LintIssue[],
+  fix?: LintFix
 ): void {
   if (!descNode) {
     issues.push({
@@ -115,6 +132,7 @@ function checkDescriptionNode(
       severity: 'error',
       start: anchor.getStart(sourceFile),
       end: anchor.getEnd(),
+      fix,
     });
     return;
   }
@@ -130,6 +148,10 @@ function checkDescriptionNode(
       severity: 'error',
       start: descNode.getStart(sourceFile),
       end: descNode.getEnd(),
+      fix: {
+        title: 'Insert a TODO description',
+        edits: [{ start: descNode.getStart(sourceFile), end: descNode.getEnd(), newText: JSON.stringify(TODO_DESCRIPTION) }],
+      },
     });
     return;
   }
@@ -156,6 +178,20 @@ function checkSchemaShape(
   if (ts.isCallExpression(schemaNode)) {
     const calleeText = schemaNode.expression.getText(sourceFile);
     if (/\.object$/.test(calleeText) || /^z\.object$/.test(calleeText)) {
+      const firstArg = schemaNode.arguments[0];
+      const fix: LintFix | undefined =
+        firstArg && ts.isObjectLiteralExpression(firstArg)
+          ? {
+              title: 'Unwrap z.object(...) into a raw shape',
+              edits: [
+                {
+                  start: schemaNode.getStart(sourceFile),
+                  end: schemaNode.getEnd(),
+                  newText: firstArg.getText(sourceFile),
+                },
+              ],
+            }
+          : undefined;
       issues.push({
         code: 'mcp-lint/malformed-schema',
         message:
@@ -163,6 +199,7 @@ function checkSchemaShape(
         severity: 'error',
         start: schemaNode.getStart(sourceFile),
         end: schemaNode.getEnd(),
+        fix,
       });
     }
     return;
@@ -180,6 +217,16 @@ function checkSchemaShape(
       severity: 'warning',
       start: schemaNode.getStart(sourceFile),
       end: schemaNode.getEnd(),
+      fix: {
+        title: 'Add a TODO placeholder parameter',
+        edits: [
+          {
+            start: schemaNode.getStart(sourceFile),
+            end: schemaNode.getEnd(),
+            newText: "{ /* TODO: define input parameters, e.g. exampleParam: z.string().describe('what this controls') */ }",
+          },
+        ],
+      },
     });
     return;
   }
@@ -199,6 +246,28 @@ function checkSchemaShape(
         start: nameNode.getStart(sourceFile),
         end: nameNode.getEnd(),
       });
+    }
+    if (options.requireParamDescriptions && ts.isPropertyAssignment(prop)) {
+      const initText = prop.initializer.getText(sourceFile).trim();
+      if (/^z\s*\./.test(initText) && !/\.describe\s*\(/.test(initText)) {
+        issues.push({
+          code: 'mcp-lint/missing-param-description',
+          message: `Parameter "${name}" has no .describe(...) call. Per-parameter descriptions help a model fill in the right value without guessing from the name alone.`,
+          severity: 'info',
+          start: nameNode.getStart(sourceFile),
+          end: nameNode.getEnd(),
+          fix: {
+            title: 'Add a TODO .describe(...) call',
+            edits: [
+              {
+                start: prop.initializer.getEnd(),
+                end: prop.initializer.getEnd(),
+                newText: ".describe('TODO')",
+              },
+            ],
+          },
+        });
+      }
     }
   }
 }
@@ -236,7 +305,17 @@ function handleToolCall(
       if (key === 'description') descProp = prop.initializer;
       if (key === 'inputSchema') schemaProp = prop.initializer;
     }
-    checkDescriptionNode(descProp, config, sourceFile, options, issues);
+    const configInsertFix: LintFix = {
+      title: 'Insert a TODO description',
+      edits: [
+        {
+          start: config.getStart(sourceFile) + 1,
+          end: config.getStart(sourceFile) + 1,
+          newText: ` description: ${JSON.stringify(TODO_DESCRIPTION)},`,
+        },
+      ],
+    };
+    checkDescriptionNode(descProp, config, sourceFile, options, issues, descProp ? undefined : configInsertFix);
     checkSchemaShape(schemaProp, sourceFile, options, issues);
     return;
   }
@@ -252,6 +331,10 @@ function handleToolCall(
     checkDescriptionNode(undefined, nameArg, sourceFile, options, issues);
     return;
   }
+  const insertAfterNameFix: LintFix = {
+    title: 'Insert a TODO description',
+    edits: [{ start: nameArg.getEnd(), end: nameArg.getEnd(), newText: `, ${JSON.stringify(TODO_DESCRIPTION)}` }],
+  };
   if (ts.isStringLiteralLike(second)) {
     checkDescriptionNode(second, nameArg, sourceFile, options, issues);
     const third = args[2];
@@ -262,10 +345,10 @@ function handleToolCall(
   }
   if (isFunctionLike(second)) {
     // tool(name, cb) -- no description, no schema.
-    checkDescriptionNode(undefined, nameArg, sourceFile, options, issues);
+    checkDescriptionNode(undefined, nameArg, sourceFile, options, issues, insertAfterNameFix);
     return;
   }
   // tool(name, paramsSchema, cb) -- schema given, description omitted.
-  checkDescriptionNode(undefined, nameArg, sourceFile, options, issues);
+  checkDescriptionNode(undefined, nameArg, sourceFile, options, issues, insertAfterNameFix);
   checkSchemaShape(second, sourceFile, options, issues);
 }

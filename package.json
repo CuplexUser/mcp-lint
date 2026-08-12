@@ -2,9 +2,10 @@
   "name": "mcp-lint",
   "displayName": "MCP Lint",
   "description": "Real-time diagnostics for MCP server source as you write it: missing tool descriptions, malformed input schemas, duplicate tool names, overly generic parameter names, and description token-bloat.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "mcplint",
   "license": "MIT",
+  "icon": "icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/CuplexUser/mcp-lint"
@@ -42,6 +43,11 @@
       {
         "command": "mcpLint.relintDocument",
         "title": "MCP Lint: Re-lint Current File",
+        "category": "MCP Lint"
+      },
+      {
+        "command": "mcpLint.scanWorkspace",
+        "title": "MCP Lint: Scan Workspace for Problems",
         "category": "MCP Lint"
       }
     ],
@@ -89,6 +95,11 @@
           "type": "string",
           "default": "npx @modelcontextprotocol/inspector --cli",
           "description": "Command used by 'MCP Lint: Run MCP Inspector CLI on This File' (the file path is appended)."
+        },
+        "mcpLint.requireParamDescriptions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Warn when an input schema parameter (a Zod validator) has no .describe(...) call."
         }
       }
     }
