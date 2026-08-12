@@ -64,8 +64,24 @@
             "type": "string"
           },
           "default": [
-            "data", "input", "value", "values", "params", "arg", "args",
-            "obj", "object", "item", "items", "x", "y", "temp", "foo", "bar", "payload", "body"
+            "data",
+            "input",
+            "value",
+            "values",
+            "params",
+            "arg",
+            "args",
+            "obj",
+            "object",
+            "item",
+            "items",
+            "x",
+            "y",
+            "temp",
+            "foo",
+            "bar",
+            "payload",
+            "body"
           ],
           "description": "Top-level input schema property names considered too generic to be useful to a model."
         },
@@ -86,7 +102,7 @@
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.85.0",
-    "@vscode/vsce": "^2.24.0"
+    "@vscode/vsce": "^3.9.2"
   },
   "dependencies": {
     "typescript": "^5.4.0"
