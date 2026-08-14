@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP Lint — Real-time diagnostics for MCP server source</title>
+  <meta name="description" content="MCP Lint catches missing tool descriptions, duplicate tool names, generic parameter names, description token-bloat, and missing parameter descriptions — right in your editor as you type.">
+  <meta property="og:title" content="MCP Lint — Real-time diagnostics for MCP server source">
+  <meta property="og:description" content="Catches missing tool descriptions, duplicate tool names, generic parameter names, description token-bloat, and missing parameter descriptions — right in your editor as you type.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="#" class="nav-brand">🔍 MCP Lint</a>
+      <div class="nav-links">
+        <a href="https://github.com/CuplexUser/mcp-lint">GitHub</a>
+        <a href="#install">Install</a>
+        <a href="#rules">Rules</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="container">
+      <h1>Lint your MCP server <em>while you write it</em></h1>
+      <p class="hero-sub">
+        MCP Lint is a <strong>VS Code extension</strong> that watches your
+        <code>server.tool(...)</code> and <code>server.registerTool(...)</code> calls
+        and reports problems the moment you introduce them — the same way ESLint or a
+        type checker would. No separate CLI, no pointing at a running server.
+      </p>
+      <div class="hero-actions">
+        <a href="#install" class="btn btn-primary">Quick start — 3 commands</a>
+        <a href="https://github.com/CuplexUser/mcp-lint" class="btn btn-ghost">View on GitHub</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- What it catches -->
+    <section id="rules" class="section">
+      <div class="container">
+        <h2>What it catches</h2>
+        <p class="section-intro">
+          Six diagnostic rules, all with one-click Quick Fixes. Open
+          <a href="https://github.com/CuplexUser/mcp-lint/blob/main/examples/bad-server.ts"><code>examples/bad-server.ts</code></a>
+          to see every rule fire at once.
+        </p>
+
+        <div class="rules-grid">
+          <!-- Rule 1: Missing description -->
+          <article class="rule-card severity-error">
+            <div class="rule-header">
+              <span class="rule-code">mcp-lint/missing-description</span>
+              <span class="badge badge-error">error</span>
+            </div>
+            <h3>Missing or empty tool description</h3>
+            <p>
+              Agents choose which tool to call by reading the description. A tool
+              with no description is effectively invisible to the model.
+            </p>
+            <div class="code-block">
+              <div class="code-label">❌ Flagged</div>
+              <pre><code><span class="kw">server</span>.<span class="fn">tool</span>(<span class="str">'delete_file'</span>, { path: <span class="kw">z</span>.<span class="fn">string</span>() }, <span class="kw">async</span> ({ path }) => {
+  <span class="cm">// ✗ no description argument at all</span>
+});</code></pre>
+            </div>
+            <div class="code-block">
+              <div class="code-label">✅ Fixed</div>
+              <pre><code><span class="kw">server</span>.<span class="fn">tool</span>(<span class="str">'delete_file'</span>, <span class="str">'Delete a file by its path.'</span>,
+  { path: <span class="kw">z</span>.<span class="fn">string</span>() }, <span class="kw">async</span> ({ path }) => {
+  <span class="cm">// ✓ description tells the model what this does</span>
+});</code></pre>
+            </div>
+          </article>
+
+          <!-- Rule 2: Duplicate tool name -->
+          <article class="rule-card severity-error">
+            <div class="rule-header">
+              <span class="rule-code">mcp-lint/duplicate-tool-name</span>
+              <span class="badge badge-error">error</span>
+            </div>
+            <h3>Duplicate tool name</h3>
+            <p>
+              Registering two tools with the same name means only the first one is
+              reachable at runtime. The second registration silently shadows nothing.
+            </p>
+            <div class="code-block">
+              <div class="code-label">❌ Flagged</div>
+              <pre><code><span class="kw">server</span>.<span class="fn">tool</span>(<span class="str">'list_files'</span>, <span class="str">'List files.'</span>, <span class="kw">async</span> () => { … });
+
+<span class="cm">// ✗ 'list_files' was already registered above</span>
+<span class="kw">server</span>.<span class="fn">tool</span>(<span class="str">'list_files'</span>, <span class="str">'List files again.'</span>, <span class="kw">async</span> () => { … });</code></pre>
+            </div>
+          </article>
+
+          <!-- Rule 3: Generic param names -->
+          <article class="rule-card severity-warning">
+            <div class="rule-header">
+              <span class="rule-code">mcp-lint/generic-param-name</span>
+              <span class="badge badge-warning">warning</span>
+            </div>
+            <h3>Overly generic parameter names</h3>
+            <p>
+              Names like <code>data</code>, <code>value</code>, <code>input</code>, or
+              <code>payload</code> give a model nothing to reason about. Prefer
+              descriptive names like <code>repositoryUrl</code> or
+              <code>maxResults</code>. The list of flagged names is configurable.
+            </p>
+            <div class="code-block">
+              <div class="code-label">❌ Flagged</div>
+              <pre><code><span class="kw">inputSchema</span>: {
+  <span class="warn">data</span>: <span class="kw">z</span>.<span class="fn">any</span>(),   <span class="cm">// ✗ too generic</span>
+  <span class="warn">value</span>: <span class="kw">z</span>.<span class="fn">string</span>(), <span class="cm">// ✗ too generic</span>
+}</code></pre>
+            </div>
+            <div class="code-block">
+              <div class="code-label">✅ Fixed</div>
+              <pre><code><span class="kw">inputSchema</span>: {
+  <span class="ok">recordId</span>: <span class="kw">z</span>.<span class="fn">string</span>().<span class="fn">describe</span>(<span class="str">'The ID of the record to update'</span>),
+  <span class="ok">newValue</span>: <span class="kw">z</span>.<span class="fn">string</span>().<span class="fn">describe</span>(<span class="str">'The new value to set'</span>),
+}</code></pre>
+            </div>
+          </article>
+
+          <!-- Rule 4: Description bloat -->
+          <article class="rule-card severity-warning">
+            <div class="rule-header">
+              <span class="rule-code">mcp-lint/description-bloat</span>
+              <span class="badge badge-warning">warning</span>
+            </div>
+            <h3>Description token-bloat</h3>
+            <p>
+              Long descriptions cost context on <em>every single call</em>.
+              Keep descriptions tight and move detail into per-parameter
+              <code>.describe()</code> calls. Default threshold: 120 tokens
+              (configurable via <code>mcpLint.maxDescriptionTokens</code>).
+            </p>
+            <div class="code-block">
+              <div class="code-label">❌ Flagged (100+ tokens)</div>
+              <pre><code><span class="kw">server</span>.<span class="fn">tool</span>(<span class="str">'send_email'</span>,
+  <span class="str">'Sends an email to a recipient. This tool should be used</span>
+<span class="str">   whenever the user wants to communicate with someone via</span>
+<span class="str">   electronic mail, which is a system for exchanging digital</span>
+<span class="str">   messages between people using digital devices …'</span>,
+  <span class="cm">// ✗ 100+ whitespace-separated tokens</span>
+  { … });</code></pre>
+            </div>
+          </article>
+
+          <!-- Rule 5: Missing param .describe() -->
+          <article class="rule-card severity-info">
+            <div class="rule-header">
+              <span class="rule-code">mcp-lint/missing-param-description</span>
+              <span class="badge badge-info">info</span>
+            </div>
+            <h3>Missing per-parameter <code>.describe()</code></h3>
+            <p>
+              Schema properties without a <code>.describe(...)</code> call give a
+              model nothing to go on for that field. Enabled by default; toggle via
+              <code>mcpLint.requireParamDescriptions</code>.
+            </p>
+            <div class="code-block">
+              <div class="code-label">❌ Flagged</div>
+              <pre><code>{ query: <span class="kw">z</span>.<span class="fn">string</span>() }  <span class="cm">// ✗ no .describe()</span></code></pre>
+            </div>
+            <div class="code-block">
+              <div class="code-label">✅ Fixed</div>
+              <pre><code>{ query: <span class="kw">z</span>.<span class="fn">string</span>().<span class="fn">describe</span>(<span class="str">'The text to search for'</span>) }</code></pre>
+            </div>
+          </article>
+
+          <!-- Rule 6: Malformed schema -->
+          <article class="rule-card severity-error">
+            <div class="rule-header">
+              <span class="rule-code">mcp-lint/malformed-schema</span>
+              <span class="badge badge-error">error</span>
+            </div>
+            <h3>Malformed input schema</h3>
+            <p>
+              The MCP SDK expects a plain object of Zod validators (a
+              <code>ZodRawShape</code>), not a <code>z.object(...)</code> call.
+              Also flags empty <code>{}</code> schemas — either define the
+              parameters or omit the argument.
+            </p>
+            <div class="code-block">
+              <div class="code-label">❌ Flagged</div>
+              <pre><code><span class="kw">server</span>.<span class="fn">tool</span>(<span class="str">'search'</span>, <span class="str">'Search.'</span>,
+  <span class="kw">z</span>.<span class="fn">object</span>({ query: <span class="kw">z</span>.<span class="fn">string</span>() }),  <span class="cm">// ✗ z.object() wrapper</span>
+  <span class="kw">async</span> () => { … });
+
+<span class="kw">server</span>.<span class="fn">tool</span>(<span class="str">'list'</span>, <span class="str">'List.'</span>, {}, <span class="kw">async</span> () => { … });
+<span class="cm">// ✗ empty {} schema</span></code></pre>
+            </div>
+            <div class="code-block">
+              <div class="code-label">✅ Fixed</div>
+              <pre><code><span class="kw">server</span>.<span class="fn">tool</span>(<span class="str">'search'</span>, <span class="str">'Search.'</span>,
+  { query: <span class="kw">z</span>.<span class="fn">string</span>().<span class="fn">describe</span>(<span class="str">'Search query'</span>) },
+  <span class="kw">async</span> () => { … });</code></pre>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quick fixes -->
+    <section class="section section-alt">
+      <div class="container">
+        <h2>One-click Quick Fixes</h2>
+        <p class="section-intro">
+          Most issues ship with a Code Action — hit
+          <kbd>Ctrl+.</kbd> / <kbd>Cmd+.</kbd> or click the lightbulb:
+        </p>
+        <ul class="fix-list">
+          <li><strong>Insert a TODO description</strong> — for missing descriptions on either call shape</li>
+          <li><strong>Unwrap <code>z.object(...)</code></strong> — into a raw Zod shape</li>
+          <li><strong>Scaffold an empty input schema</strong> — with a TODO placeholder parameter</li>
+          <li><strong>Add a TODO <code>.describe(...)</code></strong> — to an undocumented parameter</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Also includes -->
+    <section class="section">
+      <div class="container">
+        <h2>Also included</h2>
+        <div class="features-grid">
+          <div class="feature">
+            <h3>🔬 Inspector CLI bridge</h3>
+            <p>
+              <strong>"MCP Lint: Run MCP Inspector CLI on This File"</strong> shells
+              out to <code>npx @modelcontextprotocol/inspector --cli</code> and
+              surfaces the result as a diagnostic plus full raw output in the
+              <strong>"MCP Lint: Inspector"</strong> output channel.
+            </p>
+          </div>
+          <div class="feature">
+            <h3>📊 Workspace-wide scan</h3>
+            <p>
+              <strong>"MCP Lint: Scan Workspace for Problems"</strong> lints every
+              <code>.ts/.tsx/.js/.jsx</code> file in one pass — useful before a
+              commit or PR. A status bar item shows the live total problem count.
+            </p>
+          </div>
+          <div class="feature">
+            <h3>⚡ Updates as you type</h3>
+            <p>
+              Diagnostics appear as squiggly underlines and in the Problems panel,
+              updating on every keystroke (debounced 300 ms) and on save. No
+              separate build step, no CLI to remember.
+            </p>
+          </div>
+          <div class="feature">
+            <h3>🎯 Syntax-level, not guesswork</h3>
+            <p>
+              The analyzer only reasons about literal arguments in source text and
+              intentionally skips anything passed via a variable — no false
+              positives from dynamic code.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Install -->
+    <section id="install" class="section section-alt">
+      <div class="container">
+        <h2>Quick start — 3 commands</h2>
+        <p class="section-intro">
+          Clone, install, compile. Then press <kbd>F5</kbd>.
+        </p>
+        <div class="install-block">
+          <div class="code-block">
+            <pre><code><span class="prompt">$</span> git clone https://github.com/CuplexUser/mcp-lint.git
+<span class="prompt">$</span> cd mcp-lint && npm install
+<span class="prompt">$</span> npm run compile</code></pre>
+          </div>
+        </div>
+        <p class="install-next">
+          Open the folder in VS Code and press <strong>F5</strong>
+          (Run → Start Debugging) to launch an Extension Development Host with
+          MCP Lint active.
+        </p>
+        <div class="install-demo">
+          <p>
+            <strong>See it in action in 30 seconds:</strong> open
+            <a href="https://github.com/CuplexUser/mcp-lint/blob/main/examples/bad-server.ts"><code>examples/bad-server.ts</code></a>
+            to see every rule fire, or
+            <a href="https://github.com/CuplexUser/mcp-lint/blob/main/examples/good-server.ts"><code>examples/good-server.ts</code></a>
+            to confirm a clean file reports zero problems.
+          </p>
+        </div>
+        <details class="vsix-details">
+          <summary>Or package a <code>.vsix</code> for permanent install</summary>
+          <div class="code-block">
+            <pre><code><span class="prompt">$</span> npm install -g @vscode/vsce
+<span class="prompt">$</span> vsce package</code></pre>
+          </div>
+          <p>Install the resulting <code>.vsix</code> from the Extensions view's
+          "…" menu → <strong>Install from VSIX</strong>.</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- Configuration -->
+    <section class="section">
+      <div class="container">
+        <h2>Configuration</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Setting</th><th>Default</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>mcpLint.enable</code></td><td><code>true</code></td><td>Enable/disable all diagnostics</td></tr>
+              <tr><td><code>mcpLint.maxDescriptionTokens</code></td><td><code>120</code></td><td>Token-bloat warning threshold</td></tr>
+              <tr><td><code>mcpLint.genericParamNames</code></td><td>18 names</td><td>Parameter names flagged as too generic</td></tr>
+              <tr><td><code>mcpLint.inspectorCommand</code></td><td><code>npx @modelcontextprotocol/inspector --cli</code></td><td>Base command for the Inspector bridge</td></tr>
+              <tr><td><code>mcpLint.requireParamDescriptions</code></td><td><code>true</code></td><td>Warn on schema params with no <code>.describe()</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p>
+        <strong>MCP Lint</strong> —
+        <a href="https://github.com/CuplexUser/mcp-lint">github.com/CuplexUser/mcp-lint</a>
+        — MIT License
+      </p>
+    </div>
+  </footer>
+</body>
+</html>

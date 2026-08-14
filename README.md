@@ -9,6 +9,18 @@ direction (exposing VS Code's own diagnostics *as* an MCP server for agents to q
 instead watches the source file you're authoring and reports problems the moment you introduce
 them, the same way ESLint or a type checker would.
 
+## Quick start — 3 commands
+
+```bash
+git clone https://github.com/CuplexUser/mcp-lint.git
+cd mcp-lint && npm install
+npm run compile
+```
+
+Open the folder in VS Code and press **F5** (Run → Start Debugging) to launch an Extension
+Development Host with MCP Lint active. Open `examples/bad-server.ts` to see every rule fire, and
+`examples/good-server.ts` to confirm a clean file reports zero problems.
+
 ## What it catches (free tier: TypeScript / JavaScript)
 
 Scans `server.tool(...)` and `server.registerTool(...)` calls from the MCP TypeScript/JS SDK:
